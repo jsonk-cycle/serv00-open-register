@@ -1,32 +1,30 @@
 name: Serv00 注册监测
 
 on:
-  workflow_dispatch:     # 支持手动触发测试
+  workflow_dispatch:
   schedule:
-    - cron: '*/3 * * * *'   # 每3分钟检测一次
+    - cron: '*/4 * * * *'    # 每4分钟检测一次
 
 jobs:
-  check-serv00:
+  check:
     runs-on: ubuntu-latest
     
     steps:
-      - name: 检测 Serv00 注册状态
-        id: status
+      - name: 检查 Serv00 是否开放
+        id: check
         run: |
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://www.serv00.com/register-account/)
           
           if [ "$HTTP_CODE" = "200" ]; then
-            echo "开放" 
             echo "status=open" >> $GITHUB_OUTPUT
-            echo "message=🎉 Serv00 可能已开放注册！快去注册！" >> $GITHUB_OUTPUT
+            echo "msg=🎉 Serv00 可能已开放注册！快去注册！" >> $GITHUB_OUTPUT
           else
-            echo "已满"
             echo "status=closed" >> $GITHUB_OUTPUT
-            echo "message=Serv00 当前已满" >> $GITHUB_OUTPUT
+            echo "msg=Serv00 当前已满" >> $GITHUB_OUTPUT
           fi
 
       - name: 发送 Telegram 通知
-        if: steps.status.outputs.status == 'open'   # 只有开放时才通知
+        if: steps.check.outputs.status == 'open'     # 只有开放才通知
         uses: appleboy/telegram-action@master
         with:
           to: ${{ secrets.TG_CHAT_ID }}
@@ -34,7 +32,7 @@ jobs:
           message: |
             🔔 Serv00 注册监测
             
-            ${{ steps.status.outputs.message }}
+            ${{ steps.check.outputs.msg }}
             
-            检测时间：$(date +"%Y-%m-%d %H:%M:%S")
-            注册链接：https://www.serv00.com/register-account/
+            时间：$(date +"%Y-%m-%d %H:%M:%S")
+            直达链接：https://www.serv00.com/register-account/
