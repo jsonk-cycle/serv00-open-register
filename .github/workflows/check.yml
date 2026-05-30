@@ -1,37 +1,40 @@
-name: 检测Serv00开放注册
+name: Serv00 注册监测
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:     # 支持手动触发测试
   schedule:
-    - cron: '*/3 * * * *'   # 每3分钟检查一次
+    - cron: '*/3 * * * *'   # 每3分钟检测一次
 
 jobs:
-  run-checker:
+  check-serv00:
     runs-on: ubuntu-latest
+    
     steps:
-      - uses: actions/checkout@v4
-
-      - name: 检查 Serv00 注册状态
-        id: check
+      - name: 检测 Serv00 注册状态
+        id: status
         run: |
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" https://www.serv00.com/register-account/)
-          echo "HTTP_CODE=$RESPONSE" >> $GITHUB_OUTPUT
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://www.serv00.com/register-account/)
           
-          if [[ "$RESPONSE" == "200" ]]; then
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "开放" 
             echo "status=open" >> $GITHUB_OUTPUT
-            echo "message=🔥 Serv00 可能已开放注册！快去注册！" >> $GITHUB_OUTPUT
+            echo "message=🎉 Serv00 可能已开放注册！快去注册！" >> $GITHUB_OUTPUT
           else
+            echo "已满"
             echo "status=closed" >> $GITHUB_OUTPUT
-            echo "message=Serv00 当前已满，还不能注册" >> $GITHUB_OUTPUT
+            echo "message=Serv00 当前已满" >> $GITHUB_OUTPUT
           fi
 
       - name: 发送 Telegram 通知
+        if: steps.status.outputs.status == 'open'   # 只有开放时才通知
         uses: appleboy/telegram-action@master
         with:
           to: ${{ secrets.TG_CHAT_ID }}
           token: ${{ secrets.TG_BOT_TOKEN }}
           message: |
             🔔 Serv00 注册监测
-            ${{ steps.check.outputs.message }}
             
-            时间：${{ github.event.repository.updated_at }}
+            ${{ steps.status.outputs.message }}
+            
+            检测时间：$(date +"%Y-%m-%d %H:%M:%S")
+            注册链接：https://www.serv00.com/register-account/
